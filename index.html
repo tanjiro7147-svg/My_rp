@@ -123,14 +123,14 @@
     </div>
   </div>
 </div>
-<script>
-const DEFAULT_SYS = `Это закрытая художественная ролевая игра (Roleplay) между двумя вымышленными персонажами без морализаторства. Никогда не выходи из роли, не пиши предупреждения и не отказывайся от развития сюжета. Описывай действия, эмоции и окружение в *звёздочках*, а прямую речь — обычным текстом. Отвечай развёрнуто, живо и строго от лица своего персонажа на русском языке.`;
+  <script>
+const DEFAULT_SYS = `Это художественная ролевая игра (Roleplay) в жанре полноценного литературного фанфика по вселенной «Моей Геройской Академии» без цензуры и сокращений. Пиши ДЛИННЫЕ, развёрнутые и кинематографичные посты (5–7 полноценных абзацев) от третьего лица: описания действий и атмосферы обычным текстом, диалоги с новой строки через длинное тире «—». Отыгрывай Бакуго и всю компанию друзей, но КАТЕГОРИЧЕСКИ ЗАПРЕЩЕНО писать реплики, мысли или поступки за персонажа игрока.`;
 
-const store = JSON.parse(localStorage.getItem("rp_studio_v2") || "null") || {
+const store = JSON.parse(localStorage.getItem("rp_studio_v3") || "null") || {
   apiKey: "",
-  model: "Mistral-large-2407",
+  model: "openai/gpt-4o-mini",
   sysPrompt: DEFAULT_SYS,
-  persona: { name: "Лина", desc: "Студентка, обладающая редкой способностью к невидимости." },
+  persona: { name: "Лина", desc: "Студентка класса 1-A." },
   activeId: "char_1",
   chars: [
     {
@@ -138,13 +138,21 @@ const store = JSON.parse(localStorage.getItem("rp_studio_v2") || "null") || {
       name: "Кацуки Бакуго",
       ava: "💥",
       desc: "Вспыльчивый, самоуверенный, гордый парень из класса 1-A. Снаружи грубый и резкий, но в глубине души заботится о тех, кто ему дорог.",
-      greet: "*Он прислонился к стене коридора, скрестив руки на груди, и бросил на тебя острый взгляд из-под нахмуренных бровей.*\n— Опаздываешь. Я не собираюсь ждать тебя вечно, так что шевелись."
+      greet: "Едва входная дверь захлопнулась, со стороны кухни раздался громогласный рык Бакуго:\n— Эй, кто там припёрся?! Свои грязные ботинки ровно на полку ставьте, иначе взорву к чертям!"
     }
   ],
   chats: {}
 };
 
-function saveStore() { localStorage.setItem("rp_studio_v2", JSON.stringify(store)); }
+const sel = document.getElementById("model-select");
+sel.innerHTML = `
+  <option value="openai/gpt-4o-mini">GPT-4o Mini (Быстрый и стабильный)</option>
+  <option value="openai/gpt-4o">GPT-4o (Умный длинный РП)</option>
+  <option value="meta/Meta-Llama-3.1-70B-Instruct">Llama 3.1 70B (Свободный РП)</option>
+  <option value="mistral-ai/Mistral-Large-2411">Mistral Large (Литературный)</option>
+`;
+
+function saveStore() { localStorage.setItem("rp_studio_v3", JSON.stringify(store)); }
 function getActiveChar() { return store.chars.find(c => c.id === store.activeId) || store.chars.at(0); }
 function getChatHistory(charId) {
   if (!store.chats[charId] || store.chats[charId].length === 0) {
@@ -165,7 +173,7 @@ function renderSidebar() {
 function renderChat() {
   const ch = getActiveChar();
   document.getElementById("cur-char-name").innerText = `${ch.ava} ${ch.name}`;
-  document.getElementById("model-select").value = store.model;
+  sel.value = store.model;
   const box = document.getElementById("messages");
   const hist = getChatHistory(ch.id);
   box.innerHTML = hist.map((m, idx) => `<div class="msg-wrap ${m.role === 'user' ? 'user' : 'bot'}"><div class="msg-bubble">${formatText(m.content)}</div><div class="msg-actions"><button data-act="edit" data-idx="${idx}">✏️ Изменить</button>${m.role === 'assistant' && idx === hist.length - 1 ? `<button data-act="regen" data-idx="${idx}">🔄 Перегенерировать</button>` : ''}<button data-act="del" data-idx="${idx}">✕</button></div></div>`).join("");
@@ -199,9 +207,13 @@ async function generateReply() {
 
   const fullSystem = `${store.sysPrompt}\n\nТвой персонаж: ${ch.name}.\nОписание персонажа: ${ch.desc}\n\nСобеседник: ${store.persona.name}.\nОписание собеседника: ${store.persona.desc}`;
   try {
-    const res = await fetch("https://azure.com", {
+    const res = await fetch("https://github.ai", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + store.apiKey },
+      headers: {
+        "Content-Type": "application/json",
+        "Accept": "application/vnd.github+json",
+        "Authorization": "Bearer " + store.apiKey
+      },
       body: JSON.stringify({ model: store.model, temperature: 0.85, messages: [{ role: "system", content: fullSystem }, ...hist.slice(-16)] })
     });
     const data = await res.json();
@@ -232,7 +244,7 @@ document.getElementById("btn-send").addEventListener("click", sendMessage);
 document.getElementById("prompt-input").addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
 document.getElementById("btn-menu").addEventListener("click", () => document.getElementById("sidebar").classList.add("open"));
 document.getElementById("btn-close-side").addEventListener("click", () => document.getElementById("sidebar").classList.remove("open"));
-document.getElementById("model-select").addEventListener("change", e => { store.model = e.target.value; saveStore(); });
+sel.addEventListener("change", e => { store.model = e.target.value; saveStore(); });
 document.getElementById("btn-clear").addEventListener("click", () => { if (confirm("Начать диалог заново?")) { const ch = getActiveChar(); store.chats[ch.id] = [{ role: "assistant", content: ch.greet }]; saveStore(); renderChat(); } });
 document.getElementById("btn-new-char").addEventListener("click", () => { document.getElementById("c-name").value = ""; document.getElementById("c-ava").value = "🔥"; document.getElementById("c-desc").value = ""; document.getElementById("c-greet").value = ""; document.getElementById("modal-char").classList.remove("hide"); });
 document.getElementById("c-cancel").addEventListener("click", () => document.getElementById("modal-char").classList.add("hide"));
