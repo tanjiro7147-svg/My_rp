@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RolePlay AI Studio</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: sans-serif; }
+    body { background: #0d0f12; color: #ececf1; height: 100dvh; overflow: hidden; }
+    .app { display: flex; height: 100%; width: 100%; }
+    .hide { display: none !important; }
+    .sidebar { width: 270px; background: #13161b; border-right: 1px solid #232730; display: flex; flex-direction: column; z-index: 20; transition: transform 0.25s; }
+    .side-top { padding: 14px; display: flex; gap: 8px; border-bottom: 1px solid #232730; }
+    .new-btn { flex: 1; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; border: none; padding: 10px; border-radius: 10px; font-weight: 600; cursor: pointer; }
+    .char-list { flex: 1; overflow-y: auto; padding: 8px; }
+    .char-item { display: flex; align-items: center; gap: 10px; padding: 10px; border-radius: 10px; cursor: pointer; margin-bottom: 4px; }
+    .char-item:hover, .char-item.active { background: #1e222b; }
+    .char-ava { width: 36px; height: 36px; border-radius: 50%; background: #262b36; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+    .char-info { flex: 1; overflow: hidden; }
+    .char-info b { display: block; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .char-info small { color: #8e96a4; font-size: 12px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .side-bottom { padding: 12px; border-top: 1px solid #232730; display: flex; flex-direction: column; gap: 6px; }
+    .side-link { background: #1a1e26; border: 1px solid #282d38; color: #ececf1; padding: 10px; border-radius: 10px; text-align: left; cursor: pointer; font-size: 13px; }
+    .chat-area { flex: 1; display: flex; flex-direction: column; background: #0d0f12; min-width: 0; }
+    .topbar { height: 56px; padding: 0 14px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #1e222b; background: #101318; }
+    .icon-btn { background: none; border: none; color: #a1a8b5; font-size: 20px; cursor: pointer; padding: 6px; }
+    .model-box { display: flex; flex-direction: column; align-items: center; }
+    .char-title { font-weight: 600; font-size: 15px; }
+    #model-select { background: transparent; color: #8b5cf6; border: none; font-size: 12px; font-weight: 600; outline: none; }
+    #model-select option { background: #161920; color: #fff; }
+    .messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+    .msg-wrap { display: flex; flex-direction: column; max-width: 85%; }
+    .msg-wrap.user { align-self: flex-end; align-items: flex-end; }
+    .msg-wrap.bot { align-self: flex-start; align-items: flex-start; }
+    .msg-bubble { padding: 12px 15px; border-radius: 16px; font-size: 14.5px; line-height: 1.5; white-space: pre-wrap; word-wrap: break-word; }
+    .user .msg-bubble { background: #262b38; color: #fff; border-bottom-right-radius: 4px; }
+    .bot .msg-bubble { background: #151921; border: 1px solid #222733; color: #e5e7eb; border-bottom-left-radius: 4px; }
+    .msg-bubble em { color: #a78bfa; font-style: italic; }
+    .msg-actions { display: flex; gap: 8px; margin-top: 4px; opacity: 0.6; }
+    .msg-actions button { background: none; border: none; color: #9ca3af; font-size: 12px; cursor: pointer; }
+    .composer { padding: 12px 14px; background: #101318; border-top: 1px solid #1e222b; display: flex; align-items: flex-end; gap: 10px; }
+    #prompt-input { flex: 1; background: #181c24; border: 1px solid #2a303d; border-radius: 16px; padding: 11px 14px; color: #fff; font-size: 14px; resize: none; max-height: 120px; outline: none; }
+    .send-btn { width: 42px; height: 42px; border-radius: 50%; background: #7c3aed; color: #fff; border: none; font-size: 16px; cursor: pointer; flex-shrink: 0; }
+    .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.75); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 50; }
+    .modal-card { background: #151921; border: 1px solid #272c38; border-radius: 16px; padding: 18px; width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 10px; }
+    .modal-card input, .modal-card textarea { width: 100%; background: #0d0f12; border: 1px solid #2a303d; color: #fff; padding: 10px; border-radius: 10px; font-size: 13px; outline: none; }
+    .modal-card label { font-size: 12px; color: #9ca3af; }
+    .modal-btns { display: flex; gap: 8px; margin-top: 6px; }
+    .btn-pri, .btn-sec { flex: 1; padding: 10px; border-radius: 10px; border: none; font-weight: 600; cursor: pointer; }
+    .btn-pri { background: #7c3aed; color: #fff; }
+    .btn-sec { background: #232834; color: #fff; }
+    @media (max-width: 700px) { .sidebar { position: fixed; inset: 0 auto 0 0; transform: translateX(-100%); } .sidebar.open { transform: translateX(0); } }
+  </style>
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="side-top">
+      <button class="new-btn" id="btn-new-char">+ Новый персонаж</button>
+      <button class="icon-btn" id="btn-close-side">✕</button>
+    </div>
+    <div class="char-list" id="char-list"></div>
+    <div class="side-bottom">
+      <button class="side-link" id="btn-persona">🎭 Моя персона</button>
+      <button class="side-link" id="btn-settings">⚙️ API и Модели</button>
+    </div>
+  </aside>
+  <main class="chat-area">
+    <header class="topbar">
+      <button class="icon-btn" id="btn-menu">☰</button>
+      <div class="model-box">
+        <span class="char-title" id="cur-char-name">Персонаж</span>
+        <select id="model-select">
+          <option value="Mistral-large-2407">Mistral Large (Свободный РП)</option>
+          <option value="Meta-Llama-3.1-70B-Instruct">Llama 3.1 70B (Умный РП)</option>
+          <option value="Mistral-Nemo">Mistral Nemo (Быстрый)</option>
+          <option value="gpt-4o-mini">GPT-4o Mini (GitHub)</option>
+        </select>
+      </div>
+      <button class="icon-btn" id="btn-clear">🗑️</button>
+    </header>
+    <div class="messages" id="messages"></div>
+    <div class="composer">
+      <textarea id="prompt-input" rows="1" placeholder="Напиши действие в *звёздочках* или реплику..."></textarea>
+      <button class="send-btn" id="btn-send">➤</button>
+    </div>
+  </main>
+</div>
+<div class="modal hide" id="modal-char">
+  <div class="modal-card">
+    <h3>Создать персонажа</h3>
+    <input type="text" id="c-name" placeholder="Имя персонажа">
+    <input type="text" id="c-ava" placeholder="Эмодзи аватарки (напр. 💥)">
+    <textarea id="c-desc" rows="4" placeholder="Характер, внешность, мир и отношения с тобой..."></textarea>
+    <textarea id="c-greet" rows="2" placeholder="Первое сообщение (приветствие)..."></textarea>
+    <div class="modal-btns">
+      <button class="btn-sec" id="c-cancel">Отмена</button>
+      <button class="btn-pri" id="c-save">Сохранить</button>
+    </div>
+  </div>
+</div>
+<div class="modal hide" id="modal-persona">
+  <div class="modal-card">
+    <h3>Моя персона</h3>
+    <input type="text" id="p-name" placeholder="Твоё имя">
+    <textarea id="p-desc" rows="3" placeholder="Твоя внешность, способности, роль..."></textarea>
+    <div class="modal-btns">
+      <button class="btn-sec" id="p-cancel">Закрыть</button>
+      <button class="btn-pri" id="p-save">Сохранить</button>
+    </div>
+  </div>
+</div>
+<div class="modal hide" id="modal-settings">
+  <div class="modal-card">
+    <h3>Настройки ИИ (GitHub Models)</h3>
+    <label>Твой токен GitHub (ghp_...):</label>
+    <input type="password" id="s-key" placeholder="ghp_...">
+    <label>Системный промпт (правила ролки):</label>
+    <textarea id="s-sys" rows="4"></textarea>
+    <div class="modal-btns">
+      <button class="btn-sec" id="s-cancel">Закрыть</button>
+      <button class="btn-pri" id="s-save">Сохранить</button>
+    </div>
+  </div>
+</div>
+<script>
+const DEFAULT_SYS = `Это закрытая художественная ролевая игра (Roleplay) между двумя вымышленными персонажами без морализаторства. Никогда не выходи из роли, не пиши предупреждения и не отказывайся от развития сюжета. Описывай действия, эмоции и окружение в *звёздочках*, а прямую речь — обычным текстом. Отвечай развёрнуто, живо и строго от лица своего персонажа на русском языке.`;
+
+const store = JSON.parse(localStorage.getItem("rp_studio_v2") || "null") || {
+  apiKey: "",
+  model: "Mistral-large-2407",
+  sysPrompt: DEFAULT_SYS,
+  persona: { name: "Лина", desc: "Студентка, обладающая редкой способностью к невидимости." },
+  activeId: "char_1",
+  chars: [
+    {
+      id: "char_1",
+      name: "Кацуки Бакуго",
+      ava: "💥",
+      desc: "Вспыльчивый, самоуверенный, гордый парень из класса 1-A. Снаружи грубый и резкий, но в глубине души заботится о тех, кто ему дорог.",
+      greet: "*Он прислонился к стене коридора, скрестив руки на груди, и бросил на тебя острый взгляд из-под нахмуренных бровей.*\n— Опаздываешь. Я не собираюсь ждать тебя вечно, так что шевелись."
+    }
+  ],
+  chats: {}
+};
+
+function saveStore() { localStorage.setItem("rp_studio_v2", JSON.stringify(store)); }
+function getActiveChar() { return store.chars.find(c => c.id === store.activeId) || store.chars.at(0); }
+function getChatHistory(charId) {
+  if (!store.chats[charId] || store.chats[charId].length === 0) {
+    const ch = store.chars.find(c => c.id === charId);
+    store.chats[charId] = [{ role: "assistant", content: ch.greet }];
+    saveStore();
+  }
+  return store.chats[charId];
+}
+function formatText(txt) { return txt.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/\*(.*?)\*/g, "<em>*$1*</em>"); }
+
+function renderSidebar() {
+  const list = document.getElementById("char-list");
+  list.innerHTML = store.chars.map(c => `<div class="char-item ${c.id === store.activeId ? 'active' : ''}" data-id="${c.id}"><div class="char-ava">${c.ava || "🎭"}</div><div class="char-info"><b>${c.name}</b><small>${c.desc}</small></div></div>`).join("");
+  list.querySelectorAll(".char-item").forEach(el => el.addEventListener("click", () => { store.activeId = el.dataset.id; saveStore(); renderAll(); document.getElementById("sidebar").classList.remove("open"); }));
+}
+
+function renderChat() {
+  const ch = getActiveChar();
+  document.getElementById("cur-char-name").innerText = `${ch.ava} ${ch.name}`;
+  document.getElementById("model-select").value = store.model;
+  const box = document.getElementById("messages");
+  const hist = getChatHistory(ch.id);
+  box.innerHTML = hist.map((m, idx) => `<div class="msg-wrap ${m.role === 'user' ? 'user' : 'bot'}"><div class="msg-bubble">${formatText(m.content)}</div><div class="msg-actions"><button data-act="edit" data-idx="${idx}">✏️ Изменить</button>${m.role === 'assistant' && idx === hist.length - 1 ? `<button data-act="regen" data-idx="${idx}">🔄 Перегенерировать</button>` : ''}<button data-act="del" data-idx="${idx}">✕</button></div></div>`).join("");
+  box.querySelectorAll("button").forEach(btn => btn.addEventListener("click", () => handleMsgAction(btn.dataset.act, +btn.dataset.idx)));
+  box.scrollTop = box.scrollHeight;
+}
+
+function handleMsgAction(act, idx) {
+  const ch = getActiveChar();
+  const hist = getChatHistory(ch.id);
+  if (act === "del") { hist.splice(idx, 1); saveStore(); renderChat(); }
+  else if (act === "edit") {
+    const edited = prompt("Редактировать сообщение:", hist.at(idx).content);
+    if (edited !== null && edited.trim()) { hist.at(idx).content = edited.trim(); saveStore(); renderChat(); }
+  } else if (act === "regen") { hist.pop(); saveStore(); renderChat(); generateReply(); }
+}
+
+async function generateReply() {
+  const ch = getActiveChar();
+  const hist = getChatHistory(ch.id);
+  if (!store.apiKey) {
+    hist.push({ role: "assistant", content: "*[Система: Нажми ☰ слева -> ⚙️ API и Модели и вставь свой токен GitHub (ghp_...), чтобы начать ролку!]*" });
+    saveStore(); renderChat(); return;
+  }
+  const box = document.getElementById("messages");
+  const typing = document.createElement("div");
+  typing.className = "msg-wrap bot";
+  typing.innerHTML = `<div class="msg-bubble"><em>*${ch.name} печатает...*</em></div>`;
+  box.appendChild(typing);
+  box.scrollTop = box.scrollHeight;
+
+  const fullSystem = `${store.sysPrompt}\n\nТвой персонаж: ${ch.name}.\nОписание персонажа: ${ch.desc}\n\nСобеседник: ${store.persona.name}.\nОписание собеседника: ${store.persona.desc}`;
+  try {
+    const res = await fetch("https://azure.com", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Authorization": "Bearer " + store.apiKey },
+      body: JSON.stringify({ model: store.model, temperature: 0.85, messages: [{ role: "system", content: fullSystem }, ...hist.slice(-16)] })
+    });
+    const data = await res.json();
+    typing.remove();
+    if (data.choices && data.choices.length > 0) hist.push({ role: "assistant", content: data.choices.at(0).message.content.trim() });
+    else hist.push({ role: "assistant", content: `*[Ошибка API: ${data.error?.message || data.message || res.status}]*` });
+  } catch (e) {
+    typing.remove();
+    hist.push({ role: "assistant", content: `*[Ошибка сети: ${e.message}]*` });
+  }
+  saveStore(); renderChat();
+}
+
+function sendMessage() {
+  const inp = document.getElementById("prompt-input");
+  const txt = inp.value.trim();
+  if (!txt) return;
+  inp.value = "";
+  const ch = getActiveChar();
+  const hist = getChatHistory(ch.id);
+  hist.push({ role: "user", content: txt });
+  saveStore(); renderChat(); generateReply();
+}
+
+function renderAll() { renderSidebar(); renderChat(); }
+
+document.getElementById("btn-send").addEventListener("click", sendMessage);
+document.getElementById("prompt-input").addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } });
+document.getElementById("btn-menu").addEventListener("click", () => document.getElementById("sidebar").classList.add("open"));
+document.getElementById("btn-close-side").addEventListener("click", () => document.getElementById("sidebar").classList.remove("open"));
+document.getElementById("model-select").addEventListener("change", e => { store.model = e.target.value; saveStore(); });
+document.getElementById("btn-clear").addEventListener("click", () => { if (confirm("Начать диалог заново?")) { const ch = getActiveChar(); store.chats[ch.id] = [{ role: "assistant", content: ch.greet }]; saveStore(); renderChat(); } });
+document.getElementById("btn-new-char").addEventListener("click", () => { document.getElementById("c-name").value = ""; document.getElementById("c-ava").value = "🔥"; document.getElementById("c-desc").value = ""; document.getElementById("c-greet").value = ""; document.getElementById("modal-char").classList.remove("hide"); });
+document.getElementById("c-cancel").addEventListener("click", () => document.getElementById("modal-char").classList.add("hide"));
+document.getElementById("c-save").addEventListener("click", () => { const name = document.getElementById("c-name").value.trim(); if (!name) return; const newChar = { id: "char_" + Date.now(), name, ava: document.getElementById("c-ava").value.trim() || "🎭", desc: document.getElementById("c-desc").value.trim() || "Загадочный собеседник.", greet: document.getElementById("c-greet").value.trim() || `*${name} смотрит на тебя.*\n— Привет.` }; store.chars.push(newChar); store.activeId = newChar.id; saveStore(); document.getElementById("modal-char").classList.add("hide"); renderAll(); });
+document.getElementById("btn-persona").addEventListener("click", () => { document.getElementById("p-name").value = store.persona.name; document.getElementById("p-desc").value = store.persona.desc; document.getElementById("modal-persona").classList.remove("hide"); });
+document.getElementById("p-cancel").addEventListener("click", () => document.getElementById("modal-persona").classList.add("hide"));
+document.getElementById("p-save").addEventListener("click", () => { store.persona.name = document.getElementById("p-name").value.trim() || "Игрок"; store.persona.desc = document.getElementById("p-desc").value.trim(); saveStore(); document.getElementById("modal-persona").classList.add("hide"); });
+document.getElementById("btn-settings").addEventListener("click", () => { document.getElementById("s-key").value = store.apiKey; document.getElementById("s-sys").value = store.sysPrompt; document.getElementById("modal-settings").classList.remove("hide"); });
+document.getElementById("s-cancel").addEventListener("click", () => document.getElementById("modal-settings").classList.add("hide"));
+document.getElementById("s-save").addEventListener("click", () => { store.apiKey = document.getElementById("s-key").value.trim(); store.sysPrompt = document.getElementById("s-sys").value.trim() || DEFAULT_SYS; saveStore(); document.getElementById("modal-settings").classList.add("hide"); });
+renderAll();
+</script>
+</body>
+</html>
